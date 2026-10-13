@@ -6,6 +6,7 @@ use App\Enums\Documentacion;
 use App\Filament\Resources\ClientesResource\Pages;
 use App\Filament\Resources\ProcesosRelationManagerResource\RelationManagers\ProcesosRelationManager;
 use App\Models\Clientes;
+use Dom\Text;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Section;
@@ -32,7 +33,7 @@ class ClientesResource extends Resource
                     ->description('Datos de identificación y contacto del cliente.')
                     ->icon('heroicon-o-user-circle')
                     ->schema([
-                        Grid::make(3)
+                        Grid::make(4)
                             ->schema([
                                 TextInput::make('rut')
                                     ->label('RUT')
@@ -45,6 +46,10 @@ class ClientesResource extends Resource
                                 TextInput::make('apellido')
                                     ->label('Apellido')
                                     ->placeholder('Apellido del cliente')
+                                    ->maxLength(255),
+                                TextInput::make('regimen_matrimonial')
+                                    ->label('Régimen matrimonial')
+                                    ->placeholder('Régimen matrimonial del cliente')
                                     ->maxLength(255),
                             ]),
                         Grid::make(2)

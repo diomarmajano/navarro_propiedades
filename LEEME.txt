@@ -1,0 +1,17 @@
+KIT VERIFICADO PARA NAVARRO PROPIEDADES (Laravel 13 / Sail PHP 8.5 / MySQL 8.4)
+
+Copiar estos archivos a la raíz del repositorio EN FEDORA y subirlos a GitHub:
+  compose.prod.yaml
+  .dockerignore
+  .env.production.example
+  docker/production/Dockerfile
+  docker/production/Caddyfile
+  docker/production/php.ini
+  docker/production/www.conf
+
+No reemplaza compose.yaml del Sail local.
+En la VPS copiar .env.production.example a .env.production, crear claves y editar dominio.
+Leer antes la guía guia_navarro_propiedades_repositorio_verificado.md.
+No ejecutar 'docker compose down -v' en producción.
+
+AVISO: Kit propuesto después de revisar el código; no se ha realizado un despliegue real o prueba docker build en tu VPS.
