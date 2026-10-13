@@ -13,36 +13,47 @@ class SeguimientoController extends Controller
         return view('seguimiento', compact('cliente'));
     }
     public function buscar(Request $request)
-    {
-        $request->validate([
-            'rut' => [
-                'required',
-                'string',
-                'max:20',
-            ],
-        ]);
-        // Limpiamos el RUT ingresado
-        $rut = strtoupper(trim($request->rut));
-        // Quitamos puntos y guion
-        $rut = str_replace(['.', '-'], '', $rut);
-        // Buscamos al cliente
-        $cliente = Clientes::query()
-            ->where('rut', $rut)
-            ->with([
-                'procedures' => function ($query) {
-                    $query->latest();
-                },
-            ])
-            ->first();
-        if (! $cliente) {
-            return back()
-                ->withInput()
-                ->with('error', 'No encontramos un cliente asociado a ese RUT.');
-        }
-        $cliente->consultasSeguimiento()->create([]);
-        session(['seguimiento_rut' => $cliente->rut]);
-        return view('seguimiento', [
-            'cliente' => $cliente,
-        ]);
+{
+    // Limpiar cualquier consulta anterior.
+    session()->forget('seguimiento_rut');
+
+    $request->validate([
+        'rut' => [
+            'required',
+            'string',
+            'max:20',
+        ],
+    ]);
+
+    // Normalizar el RUT ingresado.
+    $rut = strtoupper(trim($request->rut));
+
+    $rut = str_replace(['.', '-'], '', $rut);
+
+    // Buscar al cliente.
+    $cliente = Clientes::query()
+        ->where('rut', $rut)
+        ->with([
+            'procedures' => function ($query) {
+                $query->latest();
+            },
+        ])
+        ->first();
+
+    if (! $cliente) {
+        return back()
+            ->withInput()
+            ->with('error', 'No encontramos un cliente asociado a ese RUT.');
     }
+
+    // Registrar la consulta.
+    $cliente->consultasSeguimiento()->create([]);
+
+    // Guardar únicamente el RUT consultado correctamente.
+    session(['seguimiento_rut' => $cliente->rut]);
+
+    return view('seguimiento', [
+        'cliente' => $cliente,
+    ]);
+}
 }
