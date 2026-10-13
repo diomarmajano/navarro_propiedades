@@ -1,0 +1,15 @@
+{$DOMAIN} {
+    encode zstd gzip
+    root * /var/www/html/public
+
+    # Solo sirve archivos explícitamente públicos de Laravel.
+    handle_path /storage/* {
+        root * /var/www/html/storage/app/public
+        file_server
+    }
+
+    php_fastcgi app:9000 {
+        root /var/www/html/public
+    }
+    file_server
+}
