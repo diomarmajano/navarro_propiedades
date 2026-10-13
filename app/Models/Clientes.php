@@ -14,6 +14,7 @@ class Clientes extends Model
         'telefono',
         'direccion',
         'documentos',
+        'regimen_matrimonial'
     ];
     protected function casts(): array
     {

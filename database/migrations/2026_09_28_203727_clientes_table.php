@@ -16,10 +16,10 @@ return new class extends Migration
             $table->string('rut')->unique();
             $table->string('nombre');
             $table->string('apellido');
-            $table->string('regimen_matrimonail');
-            $table->string('email')->unique();
-            $table->string('telefono');
-            $table->string('direccion');
+            $table->string('regimen_matrimonial')->nullable();
+            $table->string('email')->unique()->nullable();
+            $table->string('telefono')->nullable();
+            $table->string('direccion')->nullable();
             $table->timestamps();
         });
     }
