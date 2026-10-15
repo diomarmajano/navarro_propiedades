@@ -6,7 +6,6 @@ use App\Enums\Documentacion;
 use App\Filament\Resources\ClientesResource\Pages;
 use App\Filament\Resources\ProcesosRelationManagerResource\RelationManagers\ProcesosRelationManager;
 use App\Models\Clientes;
-use Dom\Text;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Section;
@@ -16,9 +15,8 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Filament\Tables\Columns\Layout\Stack;
-use Filament\Forms\Components\Split;
-use Filament\Tables\Columns\Layout\Split as LayoutSplit;
+use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
 
 class ClientesResource extends Resource
 {
@@ -97,84 +95,127 @@ class ClientesResource extends Resource
     {
         return $table
             ->modifyQueryUsing(
-                fn($query) => $query->withCount('consultasSeguimiento')
+                fn($query) => $query
+                    ->withCount('consultasSeguimiento')
+                    ->with([
+                        'procedures' => fn($q) => $q->orderBy('orden')
+                    ])
             )
             ->columns([
+                TextColumn::make('nombre')
+                    ->label('Cliente')
+                    ->formatStateUsing(
+                        fn($record) => "{$record->nombre} {$record->apellido}"
+                    )
+                    ->weight('bold')
+                    ->searchable()
+                    ->sortable()
+                    ->icon('heroicon-o-user'),
+                TextColumn::make('rut')
+                    ->label('RUT')
+                    ->icon('heroicon-o-identification')
+                    ->color('gray')
+                    ->size('sm')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('etapa_actual')
+                    ->label('Etapa actual')
+                    ->state(
+                        fn($record) =>
+                        $record->etapa_actual ?? 'Sin etapa'
+                    )
+                    ->badge()
+                    ->color('info')
+                    ->icon('heroicon-o-map-pin'),
+                TextColumn::make('consultas_seguimiento_count')
+                    ->label('Consultas')
+                    ->formatStateUsing(
+                        fn($state) => $state == 0
+                            ? 'Sin consultas'
+                            : "{$state} consultas"
+                    )
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->color('gray')
+                    ->size('sm')
+                    ->sortable(),
 
-                LayoutSplit::make([
-
-                    // NOMBRE Y RUT
-                    Stack::make([
-
-                        TextColumn::make('nombre')
-                            ->label('Cliente')
-                            ->formatStateUsing(
-                                fn($record) => "{$record->nombre} {$record->apellido}"
-                            )
-                            ->weight('bold')
-                            ->searchable()
-                            ->sortable(),
-
-                        TextColumn::make('rut')
-                            ->label('RUT')
-                            ->icon('heroicon-o-identification')
-                            ->color('gray')
-                            ->size('sm')
-                            ->searchable()
-                            ->sortable(),
-
-                    ])->space(1),
-
-                    // CONTACTO
-                    Stack::make([
-
-                        TextColumn::make('email')
-                            ->label('Correo')
-                            ->icon('heroicon-o-envelope')
-                            ->color('gray')
-                            ->size('sm')
-                            ->copyable()
-                            ->searchable()
-                            ->wrap(),
-
-                        TextColumn::make('telefono')
-                            ->label('Teléfono')
-                            ->icon('heroicon-o-phone')
-                            ->color('gray')
-                            ->size('sm')
-                            ->copyable(),
-
-                    ])
-                        ->space(1)
-                        ->visibleFrom('md'),
-
-                    // CONTADOR DE CONSULTAS
-                    TextColumn::make('consultas_seguimiento_count')
-                        ->label('Consultas')
-                        ->badge()
-                        ->formatStateUsing(
-                            fn($state) => $state == 0
-                                ? 'Sin consultas'
-                                : "{$state} consultas"
-                        )
-                        ->color(
-                            fn($state) => $state > 0
-                                ? 'warning'
-                                : 'gray'
-                        )
-                        ->icon('heroicon-o-chat-bubble-left-right')
-                        ->sortable()
-                        ->grow(false),
-
-                ])->from('lg'),
 
             ])
             ->defaultSort('created_at', 'desc')
             ->striped()
             ->paginated([10, 25, 50])
-            ->filters([
-                //
-            ])
+            
+->filters([
+    SelectFilter::make('etapa_actual')
+        ->label('Etapa del cliente')
+        ->placeholder('Todas las etapas')
+        ->options([
+            'Evaluación' => 'Evaluación',
+            'Aprobación' => 'Aprobación',
+            'Tasación' => 'Tasación',
+            'Estudio de Título' => 'Estudio de Título',
+            'Aprobación de seguro' => 'Aprobación de seguro',
+            'Borrador de escritura' => 'Borrador de escritura',
+            'Firma de escritura' => 'Firma de escritura',
+            'Conservador' => 'Conservador',
+            'Término' => 'Término',
+        ])
+        ->query(function (Builder $query, array $data): Builder {
+            $etapa = $data['value'] ?? null;
+
+            if (blank($etapa)) {
+                return $query;
+            }
+
+            return $query->where(function (Builder $q) use ($etapa) {
+
+                // Cliente con esta etapa activa.
+                $q->whereHas('procedures', fn (Builder $p) =>
+                    $p->where('titulo', $etapa)
+                      ->where('estado', 'en_proceso')
+                );
+
+                // Sin etapa activa: primera pendiente.
+                $q->orWhere(function (Builder $sub) use ($etapa) {
+                    $sub->whereDoesntHave('procedures', fn (Builder $p) =>
+                        $p->where('estado', 'en_proceso')
+                    )
+                    ->whereHas('procedures', fn (Builder $p) =>
+                        $p->where('titulo', $etapa)
+                          ->where('estado', 'pendiente')
+                          ->whereNotExists(function ($previas) {
+                              $previas->selectRaw('1')
+                                  ->from('procesos as anteriores')
+                                  ->whereColumn(
+                                      'anteriores.cliente_id',
+                                      'procesos.cliente_id'
+                                  )
+                                  ->whereColumn(
+                                      'anteriores.orden',
+                                      '<',
+                                      'procesos.orden'
+                                  )
+                                  ->where('anteriores.estado', 'pendiente');
+                          })
+                    );
+                });
+
+                // Todas las etapas completadas.
+                if ($etapa === 'Término') {
+                    $q->orWhere(function (Builder $sub) {
+                        $sub->whereDoesntHave('procedures', fn (Builder $p) =>
+                            $p->whereIn('estado', ['en_proceso', 'pendiente'])
+                        )
+                        ->whereHas('procedures', fn (Builder $p) =>
+                            $p->where('titulo', 'Término')
+                              ->where('estado', 'completado')
+                        );
+                    });
+                }
+            });
+        }),
+])
+
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])
