@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Filament\Resources\ProcesosRelationManagerResource\RelationManagers;
+
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -7,6 +9,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+
 class ProcesosRelationManager extends RelationManager
 {
     protected static string $relationship = 'procedures';
@@ -42,13 +45,31 @@ class ProcesosRelationManager extends RelationManager
                     ->iconColor('primary')
                     ->sortable()
                     ->searchable(),
+
                 TextColumn::make('estado')
                     ->label('Estado')
-                    ->icon('heroicon-o-clipboard-document-check')
-                    ->iconColor('primary')
                     ->badge()
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'pendiente'  => 'Pendiente',
+                        'en_proceso' => 'En proceso',
+                        'completado' => 'Completado',
+                        default     => ucfirst($state),
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'pendiente'  => 'warning',
+                        'en_proceso' => 'info',
+                        'completado' => 'success',
+                        default     => 'gray',
+                    })
+                    ->icon(fn(string $state): string => match ($state) {
+                        'pendiente'  => 'heroicon-o-clock',
+                        'en_proceso' => 'heroicon-o-arrow-path',
+                        'completado' => 'heroicon-o-check-circle',
+                        default     => 'heroicon-o-question-mark-circle',
+                    })
                     ->sortable()
                     ->searchable(),
+
                 TextColumn::make('descripcion')
                     ->label('Descripción')
                     ->icon('heroicon-o-list-bullet')
